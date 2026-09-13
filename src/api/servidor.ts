@@ -11,7 +11,7 @@ import { crearApp } from "./app.ts";
 const config = configOSalir(crearLogger("api"), ["DATABASE_URL", "REDIS_URL"]);
 const logger = crearLogger("api", config.nivelLog);
 const db = crearPool(config.databaseUrl);
-const programador = crearProgramadorBullmq(config.redisUrl);
+const programador = crearProgramadorBullmq(config.redisUrl, logger);
 let cerrando = false;
 
 try {
