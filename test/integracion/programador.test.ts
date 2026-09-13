@@ -52,8 +52,12 @@ test("quitar borra el scheduler y es idempotente", async () => {
 
 test("listo responde true con la cola arriba y pendientes cuenta los trabajos esperando", async () => {
   assert.equal(await programador.listo(), true);
+  // No un número fijo: los schedulers de los tests anteriores ya dejaron trabajos
+  // esperando (upsertJobScheduler con `every` encola la primera repetición de una),
+  // así que medimos la diferencia en vez de asumir que la cola arranca en cero.
+  const antes = await programador.pendientes();
   await cola.add("chequear", { monitorId: 99 });
-  assert.equal(await programador.pendientes(), 1);
+  assert.equal(await programador.pendientes(), antes + 1);
 });
 
 test("listo responde false rápido si la cola no existe", async () => {
