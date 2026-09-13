@@ -99,7 +99,7 @@ La web (`web/`) no tiene servidor propio: son archivos estáticos que necesitan 
 | `DELETE /api/monitores/:id` | 204; 404; 503 (no se borra) |
 | `GET /api/monitores/:id/chequeos?limite=N` | 200 `Chequeo[]` del más nuevo al más viejo, `limite` 1-500 (50 por defecto); 400; 404 |
 | Cualquier otra | 404 `{"error":"no_encontrado"}` |
-| JSON roto | 400 `{"error":"json_invalido"}`; cuerpo de más de 10 kB: 413 `{"error":"cuerpo_demasiado_grande"}` |
+| JSON roto o cuerpo ilegible | 400 `{"error":"json_invalido"}`; cuerpo de más de 10 kB: 413 `{"error":"cuerpo_demasiado_grande"}`; `content-encoding` o `charset` no soportados: 415 `{"error":"tipo_no_soportado"}`; otro error al leer el cuerpo: 400 `{"error":"cuerpo_invalido"}` |
 | Error inesperado | 500 `{"error":"interno"}` y log `error` |
 
 Reglas de validación: `url` obligatoria, `http` o `https`, hasta 2048 caracteres; `intervaloSegundos` entero 10-3600 (30 por defecto); `timeoutMs` entero 100-30000 (5000 por defecto) y menor que el intervalo en milisegundos; campos desconocidos rechazados.
