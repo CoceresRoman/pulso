@@ -24,7 +24,12 @@ export function crearConexionWorker(redisUrl: string): Redis {
 }
 
 export function crearProgramadorBullmq(redisUrl: string): Programador {
-  const cola = new Queue<DatosTrabajo>(NOMBRE_COLA, { connection: new Redis(redisUrl) });
+  const conexionCola = new Redis(redisUrl);
+  // BullMQ no cierra las conexiones de ioredis que le pasamos armadas: si no la desconectamos
+  // nosotros en cerrar(), sigue reintentando para siempre (y, sin este listener, cada intento
+  // fallido tira un error no manejado).
+  conexionCola.on("error", () => {});
+  const cola = new Queue<DatosTrabajo>(NOMBRE_COLA, { connection: conexionCola });
   // Conexión aparte para el chequeo de salud: sin cola offline, falla enseguida si no hay conexión.
   const salud = new Redis(redisUrl, { maxRetriesPerRequest: 1, enableOfflineQueue: false });
   salud.on("error", () => {
@@ -57,6 +62,7 @@ export function crearProgramadorBullmq(redisUrl: string): Programador {
     },
     async cerrar() {
       await cola.close();
+      conexionCola.disconnect();
       salud.disconnect();
     },
   };
