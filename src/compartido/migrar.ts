@@ -1,13 +1,22 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type pg from "pg";
+import type { Logger } from "./logger.ts";
 
 // Número fijo del lock: dos `npm run migrar` a la vez (dos réplicas, un Job que se
 // reintenta) se ponen en fila en vez de aplicar la misma migración dos veces.
 export const LOCK_MIGRACIONES = 7_331_001;
 
-export async function migrar(pool: pg.Pool, carpeta: string): Promise<string[]> {
+export async function migrar(pool: pg.Pool, carpeta: string, logger?: Logger): Promise<string[]> {
   const cliente = await pool.connect();
+  // Mientras el cliente está afuera del pool (todo lo que dura la migración), pg-pool le
+  // saca el listener de error que le pone a los clientes ociosos (se lo vuelve a poner
+  // recién cuando se libera): sin uno propio acá, una conexión que se corta a mitad de
+  // migración emite "error" sin nadie escuchando y tira abajo el proceso, aparte de que la
+  // consulta en curso ya rechaza sola (eso lo maneja el catch de abajo).
+  cliente.on("error", error => {
+    logger?.warn({ err: error }, "se perdió la conexión con la base mientras se migraba");
+  });
   try {
     await cliente.query("select pg_advisory_lock($1)", [LOCK_MIGRACIONES]);
     await cliente.query(
