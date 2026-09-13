@@ -41,6 +41,20 @@ test("lee las fallas activables", () => {
   assert.equal(config.fallaLatenciaMs, 250);
 });
 
+test('FALLA_* solo acepta "", "0" o "1"', () => {
+  assert.throws(
+    () => leerConfig({ ...BASICO, FALLA_SIN_TIMEOUT: "true" }, ["DATABASE_URL", "REDIS_URL"]),
+    /FALLA_SIN_TIMEOUT debe ser "0" o "1" \(llegó "true"\)/
+  );
+  assert.throws(
+    () => leerConfig({ ...BASICO, FALLA_FUGA_MEMORIA: "yes" }, ["DATABASE_URL", "REDIS_URL"]),
+    /FALLA_FUGA_MEMORIA debe ser "0" o "1" \(llegó "yes"\)/
+  );
+  const config = leerConfig({ ...BASICO, FALLA_SIN_TIMEOUT: "", FALLA_FUGA_MEMORIA: "0" }, ["DATABASE_URL", "REDIS_URL"]);
+  assert.equal(config.fallaSinTimeout, false);
+  assert.equal(config.fallaFugaMemoria, false);
+});
+
 test("un nivel de log desconocido es un error", () => {
   assert.throws(() => leerConfig({ ...BASICO, LOG_LEVEL: "verbose" }, []), /LOG_LEVEL debe ser uno de/);
 });

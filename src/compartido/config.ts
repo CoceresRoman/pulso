@@ -37,6 +37,16 @@ export function leerConfig(
     return valor;
   };
 
+  // "1" la activa, "" o "0" la deja apagada; cualquier otro valor es un error de
+  // configuración en vez de quedar apagada en silencio (por ejemplo FALLA_SIN_TIMEOUT=true).
+  const flag = (nombre: string): boolean => {
+    const crudo = env[nombre];
+    if (crudo === undefined || crudo === "" || crudo === "0") return false;
+    if (crudo === "1") return true;
+    problemas.push(`${nombre} debe ser "0" o "1" (llegó "${crudo}")`);
+    return false;
+  };
+
   const config: Config = {
     puerto: entero("PORT", puertoPorDefecto, 1, 65535),
     puertoMetricas: entero("METRICAS_PORT", 9464, 1, 65535),
@@ -44,8 +54,8 @@ export function leerConfig(
     redisUrl: env.REDIS_URL ?? "",
     nivelLog: env.LOG_LEVEL || "info",
     concurrencia: entero("WORKER_CONCURRENCIA", 5, 1, 100),
-    fallaSinTimeout: env.FALLA_SIN_TIMEOUT === "1",
-    fallaFugaMemoria: env.FALLA_FUGA_MEMORIA === "1",
+    fallaSinTimeout: flag("FALLA_SIN_TIMEOUT"),
+    fallaFugaMemoria: flag("FALLA_FUGA_MEMORIA"),
     fallaLatenciaMs: entero("FALLA_LATENCIA_MS", 0, 0, 60000),
   };
 
