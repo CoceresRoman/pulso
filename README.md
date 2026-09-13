@@ -132,6 +132,8 @@ El worker no atiende HTTP de negocio: este servidor chico es solo para Prometheu
 
 `/healthz` responde mientras el proceso está vivo, sin chequear dependencias. `/readyz` chequea que Postgres y la cola respondan (503 si no). Apenas llega SIGTERM pasa a `{"estado":"cerrando"}` (503): en el **worker** se ve normal, porque el servidor de métricas sigue aceptando pedidos mientras se drenan los chequeos en curso. En la **api** casi no se llega a ver: Node deja de aceptar conexiones nuevas en el mismo instante en que llega la señal, así que ese 503 solo lo ve un pedido que ya estaba en una conexión abierta (keep-alive); una conexión nueva recibe el socket rechazado, no una respuesta HTTP (ver [Apagado](#apagado)). `/metrics` expone texto de Prometheus, con las métricas de proceso por defecto más las propias:
 
+Si Postgres se cae (un lab la reinicia, un restart de contenedor), `/readyz` pasa a responder 503 sin que el proceso se caiga: node-postgres descarta las conexiones ociosas que quedan colgadas y el pool avisa por un log `warn` (`"se perdió una conexión ociosa con la base"`), no con un crash. Cuando Postgres vuelve a responder, el pool abre conexiones nuevas solo con la próxima consulta, sin reiniciar nada a mano.
+
 **api**
 
 - `pulso_http_pedidos_total{metodo,ruta,codigo}`: pedidos atendidos.
