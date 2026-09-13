@@ -2,6 +2,7 @@ import type pg from "pg";
 import type { Logger } from "../compartido/logger.ts";
 import type { MetricasWorker } from "../compartido/metricas.ts";
 import { obtenerMonitor, registrarChequeo, type ResultadoChequeo } from "../compartido/monitores.ts";
+import { sanitizarUrl } from "../compartido/url.ts";
 import { chequear } from "./chequear.ts";
 
 export interface DependenciasProceso {
@@ -36,7 +37,7 @@ export async function procesarChequeo(deps: DependenciasProceso, monitorId: numb
     return null;
   }
 
-  const datos = { monitorId, url: monitor.url, ...resultado };
+  const datos = { monitorId, url: sanitizarUrl(monitor.url), ...resultado };
   if (resultado.ok) deps.logger.debug(datos, "chequeo");
   else deps.logger.warn(datos, "chequeo con falla");
   return resultado;
