@@ -44,6 +44,7 @@ async function cargar() {
 }
 
 async function quitar(id) {
+  error.hidden = true;
   try {
     const respuesta = await fetch(`/api/monitores/${id}`, { method: "DELETE" });
     if (!respuesta.ok) {
