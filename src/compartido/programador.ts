@@ -30,8 +30,11 @@ export function crearProgramadorBullmq(redisUrl: string): Programador {
   // fallido tira un error no manejado).
   conexionCola.on("error", () => {});
   const cola = new Queue<DatosTrabajo>(NOMBRE_COLA, { connection: conexionCola });
-  // Conexión aparte para el chequeo de salud: sin cola offline, falla enseguida si no hay conexión.
-  const salud = new Redis(redisUrl, { maxRetriesPerRequest: 1, enableOfflineQueue: false });
+  // Conexión aparte para el chequeo de salud. Con la cola offline (enableOfflineQueue en su
+  // valor por defecto) el primer ping espera a que termine de conectar en vez de fallar
+  // apenas se crea el cliente; maxRetriesPerRequest: 1 igual la hace fallar rápido si Redis
+  // no está.
+  const salud = new Redis(redisUrl, { maxRetriesPerRequest: 1 });
   salud.on("error", () => {
     // Los errores de conexión se ven en listo(): sin este listener ioredis los tira como no manejados.
   });
