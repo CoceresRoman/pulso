@@ -49,16 +49,20 @@ Cada curso de la ruta DevOps que sigue a este repo arranca con la solución de r
 ```bash
 git fetch https://github.com/CoceresRoman/pulso.git refs/tags/<tag>
 git checkout FETCH_HEAD -- <archivos del tag>
+touch .gitignore && git show FETCH_HEAD:.gitignore | grep -vxF -f .gitignore >> .gitignore
 ```
+
+El tercer comando suma al `.gitignore` de tu copia solo las líneas del tag que todavía no tenías (sin duplicar lo que ya tenías vos); `touch` cubre el caso de que tu copia no tenga `.gitignore` todavía. Correrlo de nuevo no agrega nada.
 
 Por ejemplo, para `inicio-ci-cd`:
 
 ```bash
 git fetch https://github.com/CoceresRoman/pulso.git refs/tags/inicio-ci-cd
 git checkout FETCH_HEAD -- Dockerfile .dockerignore web/Dockerfile web/default.conf.template compose.yaml .env.ejemplo
+touch .gitignore && git show FETCH_HEAD:.gitignore | grep -vxF -f .gitignore >> .gitignore
 ```
 
-Los archivos quedan en tu working tree como cambios nuevos, sin commitear: `git status` los muestra para que los revises y los agregues vos.
+Los archivos quedan en tu working tree como cambios nuevos, sin commitear (`.gitignore` como modificado, el resto como nuevos): `git status` los muestra para que los revises y los agregues vos.
 
 ## Correr sin Docker
 
