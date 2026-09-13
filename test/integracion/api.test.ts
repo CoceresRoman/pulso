@@ -15,6 +15,7 @@ import { requerirServicios } from "../soporte/servicios.ts";
 const { redisUrl } = requerirServicios();
 let base: BaseDePrueba;
 let programador: Programador;
+let conexionCola: Redis;
 let cola: Queue;
 let servidor: Server;
 let url = "";
@@ -25,7 +26,8 @@ before(async () => {
   admin.disconnect();
   base = await abrirBaseDePrueba();
   programador = crearProgramadorBullmq(redisUrl);
-  cola = new Queue(NOMBRE_COLA, { connection: new Redis(redisUrl, { maxRetriesPerRequest: null }) });
+  conexionCola = new Redis(redisUrl, { maxRetriesPerRequest: null });
+  cola = new Queue(NOMBRE_COLA, { connection: conexionCola });
   servidor = crearApp({ db: base.pool, programador, metricas: crearMetricasApi(), logger: crearLogger("test", "silent") }).listen(0, "127.0.0.1");
   await once(servidor, "listening");
   url = `http://127.0.0.1:${(servidor.address() as AddressInfo).port}`;
@@ -33,7 +35,11 @@ before(async () => {
 
 after(async () => {
   servidor.close();
+  // BullMQ no cierra las conexiones de ioredis que le pasamos armadas (ver programador.ts):
+  // cola.close() con esta conexión es un no-op y, sin desconectarla a mano, el proceso queda
+  // colgado esperando que se cierre solo.
   await cola.close();
+  conexionCola.disconnect();
   await programador.cerrar();
   await base.cerrar();
 });
