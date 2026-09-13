@@ -93,6 +93,24 @@ test("validación, JSON roto, cuerpo grande e id inválido", async () => {
   assert.equal((await pedir("GET", "/api/monitores/999999")).status, 404);
 });
 
+test("body-parser: content-encoding y charset no soportados dan 415 propio, no 500", async () => {
+  const codificacion = await fetch(`${url}/api/monitores`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "content-encoding": "rara" },
+    body: JSON.stringify({ url: "https://encoding.example" }),
+  });
+  assert.equal(codificacion.status, 415);
+  assert.deepEqual(await codificacion.json(), { error: "tipo_no_soportado" });
+
+  const charset = await fetch(`${url}/api/monitores`, {
+    method: "POST",
+    headers: { "content-type": "application/json; charset=klingon" },
+    body: JSON.stringify({ url: "https://charset.example" }),
+  });
+  assert.equal(charset.status, 415);
+  assert.deepEqual(await charset.json(), { error: "tipo_no_soportado" });
+});
+
 test("con la cola caída el alta no queda", async () => {
   programador.simularCaida(true);
   try {
