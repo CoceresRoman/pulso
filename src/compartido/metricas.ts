@@ -21,6 +21,26 @@ export function crearMetricasApi() {
 
 export type MetricasApi = ReturnType<typeof crearMetricasApi>;
 
+// Si `pendientes()` se cuelga (Valkey caído: ver programador.ts), esperarla sin límite
+// dejaría el scrape de /metrics colgado y, con él, el apagado del worker. Competimos
+// contra un timeout de 1 s que resuelve NaN; el timer se limpia apenas gana cualquiera.
+function conNanSiTarda(promesa: Promise<number>, ms: number): Promise<number> {
+  return new Promise<number>(resolve => {
+    const limite = setTimeout(() => resolve(Number.NaN), ms);
+    limite.unref();
+    promesa.then(
+      valor => {
+        clearTimeout(limite);
+        resolve(valor);
+      },
+      () => {
+        clearTimeout(limite);
+        resolve(Number.NaN);
+      }
+    );
+  });
+}
+
 export function crearMetricasWorker(pendientes: () => Promise<number>) {
   const registro = new Registry();
   collectDefaultMetrics({ register: registro });
@@ -41,12 +61,9 @@ export function crearMetricasWorker(pendientes: () => Promise<number>) {
     help: "Chequeos listos esperando un worker",
     registers: [registro],
     async collect() {
-      try {
-        this.set(await pendientes());
-      } catch {
-        // NaN en vez de romper /metrics: Prometheus sigue recibiendo el resto y el hueco se ve.
-        this.set(Number.NaN);
-      }
+      // NaN (por timeout o por error) en vez de romper /metrics: Prometheus sigue
+      // recibiendo el resto y el hueco se ve.
+      this.set(await conNanSiTarda(pendientes(), 1000));
     },
   });
   return { registro, chequeos, duracion };

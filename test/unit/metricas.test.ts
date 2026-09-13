@@ -29,3 +29,10 @@ test("si la cola no responde, pendientes es NaN y las métricas igual se publica
   // @prometheus-io/client 0.16.1 serializa Number.NaN como "Nan" (lib/util.js), no "NaN".
   assert.match(await m.registro.metrics(), /^pulso_cola_pendientes Nan$/m);
 });
+
+test("si la cola no responde a tiempo (en vez de rechazar), pendientes es Nan en menos de 2 s", async () => {
+  const inicio = performance.now();
+  const m = crearMetricasWorker(() => new Promise(() => {}));
+  assert.match(await m.registro.metrics(), /^pulso_cola_pendientes Nan$/m);
+  assert.ok(performance.now() - inicio < 2000, "collect() tardó demasiado");
+});
