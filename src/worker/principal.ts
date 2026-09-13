@@ -11,7 +11,7 @@ import { crearServidorMetricas } from "./servidor-metricas.ts";
 
 const config = configOSalir(crearLogger("worker"), ["DATABASE_URL", "REDIS_URL"]);
 const logger = crearLogger("worker", config.nivelLog);
-const db = crearPool(config.databaseUrl);
+const db = crearPool(config.databaseUrl, logger);
 const programador = crearProgramadorBullmq(config.redisUrl, logger);
 const metricas = crearMetricasWorker(() => programador.pendientes());
 let cerrando = false;

@@ -18,7 +18,7 @@ try {
 }
 
 const logger = crearLogger("migrar", config.nivelLog);
-const pool = crearPool(config.databaseUrl);
+const pool = crearPool(config.databaseUrl, logger);
 try {
   const aplicadas = await migrar(pool, CARPETA);
   logger.info({ aplicadas }, aplicadas.length > 0 ? "migraciones aplicadas" : "la base ya estaba al día");

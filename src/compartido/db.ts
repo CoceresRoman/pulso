@@ -1,7 +1,8 @@
 import pg from "pg";
+import type { Logger } from "./logger.ts";
 
-export function crearPool(url: string): pg.Pool {
-  return new pg.Pool({
+export function crearPool(url: string, logger: Logger): pg.Pool {
+  const pool = new pg.Pool({
     connectionString: url,
     max: 10,
     idleTimeoutMillis: 30_000,
@@ -11,6 +12,14 @@ export function crearPool(url: string): pg.Pool {
     // sin límite.
     query_timeout: 5_000,
   });
+  // Si Postgres corta una conexión ociosa del pool (reinicio, backend terminado a mano),
+  // node-postgres la descarta y emite "error" acá: sin este listener, el evento queda sin
+  // manejar y tira abajo el proceso entero. Con el listener, el pool sigue vivo y la
+  // próxima consulta abre una conexión nueva.
+  pool.on("error", error => {
+    logger.warn({ err: error }, "se perdió una conexión ociosa con la base");
+  });
+  return pool;
 }
 
 // Para /readyz: si la conexión ya está abierta pero Postgres no responde, query_timeout
