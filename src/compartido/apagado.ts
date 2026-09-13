@@ -19,7 +19,11 @@ export function alApagar(logger: Logger, tareas: () => Promise<void>, opciones: 
     if (apagando) return;
     apagando = true;
     logger.info({ senal }, "apagando");
+    // Si el timeout ya disparó salir(1), las tareas pueden seguir corriendo y terminar
+    // (bien o mal) más tarde: este cerrojo evita que salir() se llame una segunda vez.
+    let terminado = false;
     const limite = setTimeout(() => {
+      terminado = true;
       logger.error({ timeoutMs }, "el apagado no terminó a tiempo");
       salir(1);
     }, timeoutMs);
@@ -27,11 +31,15 @@ export function alApagar(logger: Logger, tareas: () => Promise<void>, opciones: 
     tareas().then(
       () => {
         clearTimeout(limite);
+        if (terminado) return;
+        terminado = true;
         logger.info("apagado completo");
         salir(0);
       },
       error => {
         clearTimeout(limite);
+        if (terminado) return;
+        terminado = true;
         logger.error({ err: error }, "falló el apagado");
         salir(1);
       }

@@ -50,3 +50,15 @@ test("si las tareas no terminan a tiempo sale con 1", async () => {
   await esperar(120);
   assert.deepEqual(salidas, [1]);
 });
+
+test("si las tareas terminan tarde, salir() no se llama una segunda vez", async () => {
+  const salidas: number[] = [];
+  quitar = alApagar(logger, () => esperar(120), {
+    senales: ["SIGUSR2"],
+    timeoutMs: 50,
+    salir: codigo => salidas.push(codigo),
+  });
+  process.emit("SIGUSR2");
+  await esperar(200);
+  assert.deepEqual(salidas, [1]);
+});
