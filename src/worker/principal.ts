@@ -49,6 +49,12 @@ logger.info(
   "worker esperando chequeos"
 );
 
+// Igual que en la api: el once() de arriba sólo cubre el arranque del servidor de métricas.
+servidor.on("error", error => {
+  logger.fatal({ err: error, puerto: config.puertoMetricas }, "error del servidor de métricas");
+  process.exit(1);
+});
+
 alApagar(
   logger,
   async () => {

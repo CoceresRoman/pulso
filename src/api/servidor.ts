@@ -46,6 +46,15 @@ logger.info(
   "api escuchando"
 );
 
+// El once() de arriba sólo cubre el arranque: una vez que empezó a escuchar, ese listener
+// se saca solo. Sin uno propio acá, un error del servidor en producción (por ejemplo
+// EMFILE si se agotan los file descriptors aceptando conexiones) queda sin manejar y tira
+// abajo el proceso con un dump en vez de un log JSON.
+servidor.on("error", error => {
+  logger.fatal({ err: error }, "error del servidor http");
+  process.exit(1);
+});
+
 alApagar(logger, async () => {
   cerrando = true;
   await new Promise<void>((resolve, reject) => servidor.close(error => (error ? reject(error) : resolve())));
