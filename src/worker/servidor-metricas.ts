@@ -1,5 +1,6 @@
 import { createServer, type Server } from "node:http";
 import type pg from "pg";
+import type { Logger } from "../compartido/logger.ts";
 import type { MetricasWorker } from "../compartido/metricas.ts";
 import type { Programador } from "../compartido/programador.ts";
 
@@ -10,6 +11,7 @@ export function crearServidorMetricas(deps: {
   db: pg.Pool;
   programador: Programador;
   metricas: MetricasWorker;
+  logger: Logger;
   cerrando?: () => boolean;
 }): Server {
   const cerrando = deps.cerrando ?? (() => false);
@@ -40,7 +42,8 @@ export function crearServidorMetricas(deps: {
       }
     };
     responder().catch(error => {
-      res.writeHead(500, JSON_UTF8).end(JSON.stringify({ error: "interno", detalle: String(error) }));
+      deps.logger.error({ err: error, ruta }, "error en el servidor de métricas");
+      res.writeHead(500, JSON_UTF8).end(JSON.stringify({ error: "interno" }));
     });
   });
 }

@@ -36,7 +36,7 @@ const worker = new Worker<DatosTrabajo>(
 worker.on("failed", (trabajo, error) => logger.error({ err: error, monitorId: trabajo?.data.monitorId }, "falló un chequeo"));
 worker.on("error", error => logger.error({ err: error }, "error del worker"));
 
-const servidor = crearServidorMetricas({ db, programador, metricas, cerrando: () => cerrando });
+const servidor = crearServidorMetricas({ db, programador, metricas, logger, cerrando: () => cerrando });
 servidor.listen(config.puertoMetricas);
 try {
   await once(servidor, "listening");
