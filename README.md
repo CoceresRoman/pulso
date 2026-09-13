@@ -36,6 +36,30 @@ Este repo no trae `Dockerfile`, `compose.yaml` ni manifests a propósito: esa in
 
 Este repo es una plantilla de GitHub. Para tener tu propia copia con historia propia (no un fork): botón **Use this template** en GitHub → **Create a new repository**, elegí que sea público (los cursos leen el código ahí) y cloná tu copia.
 
+## Tags de inicio
+
+Cada curso de la ruta DevOps que sigue a este repo arranca con la solución de referencia del entregable del curso anterior, publicada como un tag anotado sobre este repo (nunca sobre `main`, que se mantiene sin infraestructura). El curso te dice con qué tag empezar si no venís del anterior.
+
+| Tag | Curso que lo produce | Contenido |
+|---|---|---|
+| `inicio-ci-cd` | Docker y Compose | `Dockerfile`, `.dockerignore`, `web/Dockerfile`, `web/default.conf.template`, `compose.yaml`, `.env.ejemplo` y las líneas de `.gitignore` que esos archivos necesitan |
+
+**Use this template no copia tags**: al crear tu copia desde el botón **Use this template**, GitHub trae `main` pero no las referencias de tags de este repo. Para traer los archivos de un tag a tu propia copia, con tu repo ya clonado:
+
+```bash
+git fetch https://github.com/CoceresRoman/pulso.git refs/tags/<tag>
+git checkout FETCH_HEAD -- <archivos del tag>
+```
+
+Por ejemplo, para `inicio-ci-cd`:
+
+```bash
+git fetch https://github.com/CoceresRoman/pulso.git refs/tags/inicio-ci-cd
+git checkout FETCH_HEAD -- Dockerfile .dockerignore web/Dockerfile web/default.conf.template compose.yaml .env.ejemplo
+```
+
+Los archivos quedan en tu working tree como cambios nuevos, sin commitear: `git status` los muestra para que los revises y los agregues vos.
+
 ## Correr sin Docker
 
 ```bash
