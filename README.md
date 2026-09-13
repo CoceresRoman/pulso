@@ -79,8 +79,8 @@ La web (`web/`) no tiene servidor propio: son archivos estáticos que necesitan 
 | `LOG_LEVEL` | todos | `info` |
 | `WORKER_CONCURRENCIA` | worker | `5` |
 | `FALLA_LATENCIA_MS` | api | `0` — ver [FALLAS.md](./FALLAS.md) |
-| `FALLA_FUGA_MEMORIA` | api | `0` — ver [FALLAS.md](./FALLAS.md) |
-| `FALLA_SIN_TIMEOUT` | worker | `0` — ver [FALLAS.md](./FALLAS.md) |
+| `FALLA_FUGA_MEMORIA` | api | `0`, `1` la activa — ver [FALLAS.md](./FALLAS.md) |
+| `FALLA_SIN_TIMEOUT` | worker | `0`, `1` la activa — ver [FALLAS.md](./FALLAS.md) |
 
 ## Endpoints
 
@@ -89,7 +89,7 @@ La web (`web/`) no tiene servidor propio: son archivos estáticos que necesitan 
 | Método y ruta | Respuestas |
 |---|---|
 | `GET /healthz` | 200 `{"estado":"ok"}` mientras el proceso vive |
-| `GET /readyz` | 200 `{"estado":"listo","base":true,"cola":true}`; 503 `{"estado":"no_listo","base":bool,"cola":bool}`; 503 `{"estado":"cerrando"}` después de SIGTERM |
+| `GET /readyz` | 200 `{"estado":"listo","base":true,"cola":true}`; 503 `{"estado":"no_listo","base":bool,"cola":bool}`; 503 `{"estado":"cerrando"}` después de SIGTERM (casi no se ve: ver [Apagado](#apagado)) |
 | `GET /metrics` | 200 texto de Prometheus |
 | `GET /api/estado` | 200 `EstadoMonitor[]` |
 | `GET /api/monitores` | 200 `Monitor[]` |
@@ -126,10 +126,11 @@ El worker no atiende HTTP de negocio: este servidor chico es solo para Prometheu
 | `GET /healthz` | 200 `{"estado":"ok"}` |
 | `GET /readyz` | 200 `{"estado":"listo","base":true,"cola":true}`; 503 `{"estado":"no_listo",...}`; 503 `{"estado":"cerrando"}` después de SIGTERM |
 | `GET /metrics` | 200 texto de Prometheus |
+| Cualquier otra | 404 `{"error":"no_encontrado"}` |
 
 ## Salud y métricas
 
-`/healthz` responde mientras el proceso está vivo, sin chequear dependencias. `/readyz` chequea que Postgres y la cola respondan (503 si no) y pasa a `{"estado":"cerrando"}` (503) apenas llega SIGTERM, antes de que termine de cerrar. `/metrics` expone texto de Prometheus, con las métricas de proceso por defecto más las propias:
+`/healthz` responde mientras el proceso está vivo, sin chequear dependencias. `/readyz` chequea que Postgres y la cola respondan (503 si no). Apenas llega SIGTERM pasa a `{"estado":"cerrando"}` (503): en el **worker** se ve normal, porque el servidor de métricas sigue aceptando pedidos mientras se drenan los chequeos en curso. En la **api** casi no se llega a ver: Node deja de aceptar conexiones nuevas en el mismo instante en que llega la señal, así que ese 503 solo lo ve un pedido que ya estaba en una conexión abierta (keep-alive); una conexión nueva recibe el socket rechazado, no una respuesta HTTP (ver [Apagado](#apagado)). `/metrics` expone texto de Prometheus, con las métricas de proceso por defecto más las propias:
 
 **api**
 
@@ -140,7 +141,11 @@ El worker no atiende HTTP de negocio: este servidor chico es solo para Prometheu
 
 - `pulso_chequeos_total{resultado="ok"|"falla"}`: chequeos hechos.
 - `pulso_chequeo_duracion_segundos`: histograma de duración de cada chequeo.
-- `pulso_cola_pendientes`: chequeos esperando un worker; `NaN` si la cola no responde (no rompe el resto de `/metrics`).
+- `pulso_cola_pendientes`: chequeos esperando un worker; `Nan` si la cola no responde en 1 s (no rompe el resto de `/metrics`).
+
+## Logs
+
+Cada proceso escribe JSON a stdout con [pino](https://getpino.io), una línea por evento — nada de `console.*`. Campos fijos: `level` numérico (10 trace, 20 debug, 30 info, 40 warn, 50 error, 60 fatal), `time` en epoch ms, `servicio` (`api`, `worker`, `sitio-lento`, `migrar`) y `msg`. Los errores agregan `err` con el mensaje y el stack. `LOG_LEVEL` controla el piso (`info` por defecto). Los errores HTTP van en el cuerpo de la respuesta, en snake_case español (`{"error":"no_encontrado"}`), no en el mensaje del log.
 
 ## Tests
 
@@ -149,12 +154,20 @@ El worker no atiende HTTP de negocio: este servidor chico es solo para Prometheu
 
 ## Apagado
 
-Con SIGTERM (lo manda Docker o Kubernetes al bajar un contenedor):
+Con SIGTERM (lo manda Docker o Kubernetes al bajar un contenedor), cada proceso tiene una ventana para terminar antes de que el orquestador lo mate:
 
-- **api**: `/readyz` pasa a `{"estado":"cerrando"}`, deja de aceptar conexiones nuevas, termina los pedidos en curso y cierra la conexión a la base y a la cola.
-- **worker**: deja de tomar trabajos nuevos y espera hasta 25 s a que terminen los chequeos en curso antes de cerrar.
+- **api** (hasta 10 s): deja de aceptar conexiones nuevas en el mismo instante en que llega la señal — antes de que `/readyz` llegue a responder `{"estado":"cerrando"}` para una conexión nueva, esa conexión ya fue rechazada. Los pedidos que ya estaban en curso en una conexión abierta terminan normal (esos sí pueden llegar a ver el 503 `cerrando` si piden `/readyz` de nuevo en esa misma conexión); después se cierra la conexión a la base y a la cola. En Kubernetes hace falta un `preStop` con `sleep` para cubrir la ventana entre que el pod deja de recibir tráfico nuevo (se actualiza el Endpoint) y que la app corta conexiones, si no algunos pedidos en tránsito van a rebotar.
+- **worker** (hasta 25 s): deja de tomar trabajos nuevos y espera a que terminen los chequeos en curso antes de cerrar; mientras drena, `/readyz` de su servidor de métricas sí muestra `cerrando` con normalidad.
+
+Código de salida: `0` si el apagado terminó a tiempo; `1` si se agotó el timeout de la ventana, si alguna tarea del apagado falló, o si la configuración era inválida al arrancar.
+
+`docker stop` y el `stop_grace_period` de Compose esperan 10 s por defecto antes de mandar SIGKILL: alcanza para la api, pero es menos que los 25 s del worker — para el worker hay que subir ese valor (o `terminationGracePeriodSeconds` en Kubernetes), si no el proceso puede terminar matado a mitad de un chequeo en vez de cerrar solo.
 
 `npm run <script>` reporta el código de salida 143 al recibir SIGTERM aunque el proceso haya terminado con 0 (lo intercepta npm, no el script). En producción (systemd, contenedores) conviene arrancar los procesos con `node dist/...` directo, no con `npm run`, para ver el código de salida real.
+
+## Seguridad
+
+Esta app no tiene autenticación: cualquiera que le llegue a `POST`/`PATCH`/`DELETE /api/monitores` puede crear, cambiar o borrar monitores, y el worker le va a pegar un `GET` a cualquier URL que le den, sin restringir el destino (incluidas redes privadas). Está bien para los labs de los cursos, pero no expongas esas rutas sin protegerlas (un proxy con auth, una red interna) fuera de ese contexto.
 
 ## Licencia
 
