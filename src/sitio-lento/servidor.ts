@@ -2,8 +2,8 @@ import { configOSalir } from "../compartido/arranque.ts";
 import { crearLogger } from "../compartido/logger.ts";
 import { crearSitioLento } from "./app.ts";
 
-const logger = crearLogger("sitio-lento");
-const config = configOSalir(logger, [], 3001);
+const config = configOSalir(crearLogger("sitio-lento"), [], 3001);
+const logger = crearLogger("sitio-lento", config.nivelLog);
 const servidor = crearSitioLento();
 
 servidor.listen(config.puerto, () => logger.info({ puerto: config.puerto }, "sitio lento escuchando"));

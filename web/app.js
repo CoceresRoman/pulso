@@ -44,27 +44,42 @@ async function cargar() {
 }
 
 async function quitar(id) {
-  await fetch(`/api/monitores/${id}`, { method: "DELETE" });
-  await cargar();
+  try {
+    const respuesta = await fetch(`/api/monitores/${id}`, { method: "DELETE" });
+    if (!respuesta.ok) {
+      error.textContent = `No se pudo quitar el monitor (error ${respuesta.status})`;
+      error.hidden = false;
+      return;
+    }
+    await cargar();
+  } catch (e) {
+    error.textContent = `No se pudo conectar con la api: ${e.message}`;
+    error.hidden = false;
+  }
 }
 
 formulario.addEventListener("submit", async evento => {
   evento.preventDefault();
   error.hidden = true;
   const datos = new FormData(formulario);
-  const respuesta = await fetch("/api/monitores", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ url: datos.get("url"), intervaloSegundos: Number(datos.get("intervalo")) }),
-  });
-  if (!respuesta.ok) {
-    const cuerpo = await respuesta.json().catch(() => ({}));
-    error.textContent = cuerpo.detalles?.join(" · ") ?? `Error ${respuesta.status}`;
+  try {
+    const respuesta = await fetch("/api/monitores", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url: datos.get("url"), intervaloSegundos: Number(datos.get("intervalo")) }),
+    });
+    if (!respuesta.ok) {
+      const cuerpo = await respuesta.json().catch(() => ({}));
+      error.textContent = cuerpo.detalles?.join(" · ") ?? `Error ${respuesta.status}`;
+      error.hidden = false;
+      return;
+    }
+    formulario.reset();
+    await cargar();
+  } catch (e) {
+    error.textContent = `No se pudo conectar con la api: ${e.message}`;
     error.hidden = false;
-    return;
   }
-  formulario.reset();
-  await cargar();
 });
 
 cargar();

@@ -6,18 +6,25 @@ import { migrar } from "./compartido/migrar.ts";
 
 // Desde src/ y desde dist/ la carpeta queda un nivel arriba.
 const CARPETA = fileURLToPath(new URL("../migraciones", import.meta.url));
-const logger = crearLogger("migrar");
 
+// Antes de leer la configuración todavía no sabemos LOG_LEVEL: este logger de arranque
+// solo se usa para el fatal de una configuración inválida.
+let config;
 try {
-  const config = leerConfig(process.env, ["DATABASE_URL"]);
-  const pool = crearPool(config.databaseUrl);
-  try {
-    const aplicadas = await migrar(pool, CARPETA);
-    logger.info({ aplicadas }, aplicadas.length > 0 ? "migraciones aplicadas" : "la base ya estaba al día");
-  } finally {
-    await pool.end();
-  }
+  config = leerConfig(process.env, ["DATABASE_URL"]);
+} catch (error) {
+  crearLogger("migrar").fatal({ err: error }, "no se pudieron aplicar las migraciones");
+  process.exit(1);
+}
+
+const logger = crearLogger("migrar", config.nivelLog);
+const pool = crearPool(config.databaseUrl);
+try {
+  const aplicadas = await migrar(pool, CARPETA);
+  logger.info({ aplicadas }, aplicadas.length > 0 ? "migraciones aplicadas" : "la base ya estaba al día");
 } catch (error) {
   logger.fatal({ err: error }, "no se pudieron aplicar las migraciones");
   process.exitCode = 1;
+} finally {
+  await pool.end();
 }
