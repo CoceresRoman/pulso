@@ -1,5 +1,6 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import type pg from "pg";
+import { dbListo } from "../compartido/db.ts";
 import type { Logger } from "../compartido/logger.ts";
 import type { MetricasApi } from "../compartido/metricas.ts";
 import {
@@ -25,6 +26,12 @@ export interface DependenciasApi {
 }
 
 const tipoDeError = (error: unknown) => (typeof error === "object" && error !== null ? (error as { type?: unknown }).type : undefined);
+
+const estadoDeError = (error: unknown): number | undefined => {
+  if (typeof error !== "object" || error === null) return undefined;
+  const estado = (error as { status?: unknown }).status;
+  return typeof estado === "number" ? estado : undefined;
+};
 
 export function crearApp(deps: DependenciasApi) {
   const { db, programador, metricas, logger } = deps;
@@ -58,13 +65,7 @@ export function crearApp(deps: DependenciasApi) {
       res.status(503).json({ estado: "cerrando" });
       return;
     }
-    const [base, cola] = await Promise.all([
-      db.query("select 1").then(
-        () => true,
-        () => false
-      ),
-      programador.listo(),
-    ]);
+    const [base, cola] = await Promise.all([dbListo(db), programador.listo()]);
     const listo = base && cola;
     res.status(listo ? 200 : 503).json({ estado: listo ? "listo" : "no_listo", base, cola });
   });
@@ -194,6 +195,16 @@ export function crearApp(deps: DependenciasApi) {
     }
     if (tipoDeError(error) === "entity.too.large") {
       res.status(413).json({ error: "cuerpo_demasiado_grande" });
+      return;
+    }
+    // El resto de los errores de body-parser (content-encoding o charset no soportado,
+    // pedido abortado a medio camino, etc.) traen su propio status 4xx: lo respetamos con
+    // un código propio en vez de convertirlo en 500, para no inflar la tasa de errores del
+    // servidor con pedidos mal formados de un cliente.
+    const estado = estadoDeError(error);
+    if (estado !== undefined && estado >= 400 && estado < 500) {
+      logger.warn({ err: error, estado }, "pedido rechazado por body-parser");
+      res.status(estado).json({ error: estado === 415 ? "tipo_no_soportado" : "cuerpo_invalido" });
       return;
     }
     logger.error({ err: error }, "error no manejado");

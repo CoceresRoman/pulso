@@ -1,5 +1,6 @@
 import { createServer, type Server } from "node:http";
 import type pg from "pg";
+import { dbListo } from "../compartido/db.ts";
 import type { Logger } from "../compartido/logger.ts";
 import type { MetricasWorker } from "../compartido/metricas.ts";
 import type { Programador } from "../compartido/programador.ts";
@@ -25,13 +26,7 @@ export function crearServidorMetricas(deps: {
           res.writeHead(503, JSON_UTF8).end(JSON.stringify({ estado: "cerrando" }));
           return;
         }
-        const [base, cola] = await Promise.all([
-          deps.db.query("select 1").then(
-            () => true,
-            () => false
-          ),
-          deps.programador.listo(),
-        ]);
+        const [base, cola] = await Promise.all([dbListo(deps.db), deps.programador.listo()]);
         const listo = base && cola;
         res.writeHead(listo ? 200 : 503, JSON_UTF8).end(JSON.stringify({ estado: listo ? "listo" : "no_listo", base, cola }));
       } else if (ruta === "/metrics") {
