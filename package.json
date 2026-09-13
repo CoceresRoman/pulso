@@ -11,8 +11,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test --test-concurrency=1 \"test/unit/**/*.test.ts\"",
-    "test:integracion": "node --test --test-concurrency=1 \"test/integracion/**/*.test.ts\""
+    "test": "node --test --test-concurrency=1 \"test/unit/**/*.test.ts\" \"test/datos/**/*.test.ts\"",
+    "test:integracion": "node --test --test-concurrency=1 \"test/integracion/**/*.test.ts\"",
+    "migrar": "node dist/migrar.js",
+    "dev:migrar": "node src/migrar.ts"
   },
   "dependencies": {
     "@prometheus-io/client": "^0.16.1",
