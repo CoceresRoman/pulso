@@ -18,7 +18,9 @@
     "sitio-lento": "node dist/sitio-lento/servidor.js",
     "dev:sitio-lento": "node src/sitio-lento/servidor.ts",
     "api": "node dist/api/servidor.js",
-    "dev:api": "node --watch src/api/servidor.ts"
+    "dev:api": "node --watch src/api/servidor.ts",
+    "worker": "node dist/worker/principal.js",
+    "dev:worker": "node --watch src/worker/principal.ts"
   },
   "dependencies": {
     "@prometheus-io/client": "^0.16.1",
