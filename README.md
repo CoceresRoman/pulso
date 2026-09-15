@@ -43,6 +43,9 @@ Cada curso de la ruta DevOps que sigue a este repo arranca con la solución de r
 | Tag | Curso que lo produce | Contenido |
 |---|---|---|
 | `inicio-ci-cd` | Docker y Compose | `Dockerfile`, `.dockerignore`, `web/Dockerfile`, `web/default.conf.template`, `compose.yaml`, `.env.ejemplo` y las líneas de `.gitignore` que esos archivos necesitan |
+| `inicio-kubernetes` | CI/CD con GitHub Actions | lo de `inicio-ci-cd` más `.github/workflows/ci.yml`, `.github/workflows/publicar.yml`, `.github/release.yml`, `.github/dependabot.yml` y el `Dockerfile` con el `apt-get upgrade` que agregó ese curso |
+
+A partir de `inicio-kubernetes` los workflows tienen tu usuario de GitHub hardcodeado: reemplazá `coceresroman` (en minúscula, en las URLs de `ghcr.io`) y `CoceresRoman/pulso-alumno` (en la expresión regular de la identidad de `cosign`) por tu propio usuario y tu propio repo.
 
 **Use this template no copia tags**: al crear tu copia desde el botón **Use this template**, GitHub trae `main` pero no las referencias de tags de este repo. Para traer los archivos de un tag a tu propia copia, con tu repo ya clonado:
 
